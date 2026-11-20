@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NEON ODYSSEY — Futuristic Adventure</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#070d1c;color:#e8faff;font-family:system-ui,Arial;display:flex;justify-content:center;padding:20px}
+main{width:min(760px,100%)}h1{color:#75eaff;letter-spacing:3px;text-align:center;margin:8px}
+.hud{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;color:#a9eaff;font-size:14px;margin:12px 0}
+canvas{display:block;width:100%;height:auto;background:#08152b;border:2px solid #247b9d;border-radius:14px;touch-action:none}
+.actions,.controls{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin:12px 0}
+button{border:1px solid #3488a9;border-radius:10px;padding:11px 16px;background:#103452;color:#eaffff;font-weight:bold;cursor:pointer}
+button:hover{background:#17628b}.controls{display:grid;grid-template-columns:repeat(3,60px);max-width:190px;margin:12px auto}.controls button{font-size:20px;padding:10px 0;touch-action:none}
+.note{background:#101e33;border:1px solid #29465f;border-radius:12px;padding:12px;color:#b8d5e8;font-size:13px}
+#message{text-align:center;color:#70eaff;min-height:24px}
+</style>
+</head>
+<body><main>
+<h1>✦ NEON ODYSSEY</h1>
+<div class="hud"><span id="level">LEVEL 1</span><span id="energy">ENERGI: 0/5</span><span>❤️ <b id="life">3</b></span><span>🏆 <b id="score">0</b></span><span>⏱️ <b id="time">0</b>s</span></div>
+<canvas id="game" width="720" height="440" aria-label="Game Neon Odyssey"></canvas>
+<div class="actions"><button id="start">▶ MULAI / LANJUT</button><button id="pause">Ⅱ PAUSE</button><button id="restart">↻ ULANGI</button></div>
+<div class="controls">
+<span></span><button data-dir="up">▲</button><span></span>
+<button data-dir="left">◀</button><button data-dir="down">▼</button><button data-dir="right">▶</button>
+</div>
+<p id="message">Kumpulkan 5 kristal energi, hindari drone, lalu masuk portal hijau!</p>
+<div class="note"><b>Kontrol:</b> Gunakan tombol WASD / panah keyboard atau tombol di layar. Selesaikan 3 level untuk menang. Hindari drone merah!</div>
+</main>
+<script>
+(()=>{
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d'),W=720,H=440;
+const $=id=>document.getElementById(id);
+let p,crystals,drones,score,lives,level,time,running=false,paused=false,keys={},last=0,raf=0,inv=0;
+function makeLevel(){crystals=Array.from({length:5},()=>({x:100+Math.random()*520,y:65+Math.random()*300,got:false,phase:Math.random()*6}));drones=Array.from({length:4+level},()=>({x:100+Math.random()*540,y:65+Math.random()*300,vx:(60+Math.random()*55)*(Math.random()<.5?-1:1),vy:(25+Math.random()*45)*(Math.random()<.5?-1:1),r:14}));}
+function reset(){p={x:65,y:365,r:13,speed:205};score=0;lives=3;level=1;time=0;inv=0;paused=false;running=false;makeLevel();hud();draw();$('message').textContent='Petualangan siap dimulai!';}
+function hud(){$('level').textContent='LEVEL '+level;$('energy').textContent='ENERGI: '+crystals.filter(c=>c.got).length+'/5';$('life').textContent=lives;$('score').textContent=score;$('time').textContent=Math.floor(time);}
+function start(){if(!running){running=true;paused=false;last=performance.now();cancelAnimationFrame(raf);raf=requestAnimationFrame(loop)}else if(paused){paused=false;last=performance.now();$('message').textContent='Lanjutkan petualangan!'}}
+function pause(){if(running){paused=!paused;if(!paused){last=performance.now();raf=requestAnimationFrame(loop)}else $('message').textContent='Game dijeda.'}}
+function end(win){running=false;paused=false;draw();ctx.fillStyle='#020918dd';ctx.fillRect(0,0,W,H);ctx.textAlign='center';ctx.fillStyle='#83edff';ctx.font='bold 34px system-ui';ctx.fillText(win?'MISI BERHASIL!':'GAME OVER',W/2,H/2-10);ctx.fillStyle='white';ctx.font='18px system-ui';ctx.fillText('Skor: '+score+' — tekan ULANGI untuk bermain lagi',W/2,H/2+28);$('message').textContent=win?'Kamu menaklukkan planet Neon!':'Coba lagi dan kumpulkan semua kristal.';}
+function loop(now){if(!running||paused)return;let dt=Math.min((now-last)/1000,.035);last=now;update(dt);draw();if(running)raf=requestAnimationFrame(loop)}
+function update(dt){time+=dt;let dx=(keys.right?1:0)-(keys.left?1:0),dy=(keys.down?1:0)-(keys.up?1:0);if(dx&&dy){dx*=.707;dy*=.707}p.x=Math.max(24,Math.min(W-24,p.x+dx*p.speed*dt));p.y=Math.max(30,Math.min(H-24,p.y+dy*p.speed*dt));inv=Math.max(0,inv-dt);
+for(const d of drones){d.x+=d.vx*dt;d.y+=d.vy*dt;if(d.x<35||d.x>W-35)d.vx*=-1;if(d.y<45||d.y>H-35)d.vy*=-1;if(inv<=0&&Math.hypot(d.x-p.x,d.y-p.y)<d.r+p.r){lives--;inv=1.5;p.x=65;p.y=365;$('message').textContent='Drone menyentuhmu! Hati-hati.';if(lives<=0){hud();end(false);return}}}
+for(const c of crystals)if(!c.got&&Math.hypot(c.x-p.x,c.y-p.y)<26){c.got=true;score+=20}
+if(crystals.every(c=>c.got)&&Math.hypot(p.x-655,p.y-65)<35){if(level===3){score+=100;hud();end(true);return}level++;score+=100;lives=Math.min(3,lives+1);p.x=65;p.y=365;makeLevel();$('message').textContent='Level '+level+'! Tantangan bertambah.'}
+hud();}
+function glow(color,n=15){ctx.shadowColor=color;ctx.shadowBlur=n}
+function draw(){ctx.clearRect(0,0,W,H);let g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#0b2341');g.addColorStop(1,'#080b20');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+for(let i=0;i<100;i++){ctx.globalAlpha=.2+(i%4)*.12;ctx.fillStyle='#9ceaff';ctx.fillRect(i*73%W,i*97%H,2,2)}ctx.globalAlpha=1;
+ctx.strokeStyle='#174566';ctx.lineWidth=1;for(let x=0;x<W;x+=40){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke()}for(let y=0;y<H;y+=40){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke()}
+ctx.strokeStyle='#27a9d1';ctx.lineWidth=3;ctx.strokeRect(12,12,W-24,H-24);
+ctx.save();ctx.translate(655,65);glow('#39ffb0',crystals.every(c=>c.got)?24:6);ctx.strokeStyle=crystals.every(c=>c.got)?'#45ffb1':'#405e75';ctx.lineWidth=5;ctx.beginPath();ctx.ellipse(0,0,20,29,0,0,Math.PI*2);ctx.stroke();ctx.beginPath();ctx.ellipse(0,0,12,22,0,0,Math.PI*2);ctx.stroke();ctx.restore();
+ctx.textAlign='center';ctx.font='11px system-ui';ctx.fillStyle='#7afac5';ctx.fillText('PORTAL',655,110);
+for(const c of crystals)if(!c.got){ctx.save();ctx.translate(c.x,c.y+Math.sin(time*3+c.phase)*4);ctx.rotate(time*.7);glow('#35dcff',18);ctx.fillStyle='#69eaff';ctx.beginPath();ctx.moveTo(0,-13);ctx.lineTo(10,0);ctx.lineTo(0,13);ctx.lineTo(-10,0);ctx.closePath();ctx.fill();ctx.restore()}
+for(const d of drones){ctx.save();ctx.translate(d.x,d.y);glow('#ff315e',14);ctx.fillStyle='#d92658';ctx.beginPath();ctx.arc(0,0,d.r,0,Math.PI*2);ctx.fill();ctx.fillStyle='#fff0f3';ctx.fillRect(-7,-3,14,5);ctx.restore()}
+ctx.save();ctx.translate(p.x,p.y);if(inv>0&&Math.floor(time*12)%2===0)ctx.globalAlpha=.25;glow('#42eaff',19);ctx.fillStyle='#16a9d4';ctx.beginPath();ctx.moveTo(0,-17);ctx.lineTo(14,10);ctx.lineTo(0,5);ctx.lineTo(-14,10);ctx.closePath();ctx.fill();ctx.fillStyle='#d9fbff';ctx.fillRect(-5,-5,10,6);ctx.fillStyle='#4bdaff';ctx.fillRect(-4,13,8,10);ctx.restore();ctx.globalAlpha=1;ctx.shadowBlur=0;
+ctx.textAlign='left';ctx.font='12px system-ui';ctx.fillStyle=crystals.every(c=>c.got)?'#67ffbc':'#bcefff';ctx.fillText(crystals.every(c=>c.got)?'PORTAL TERBUKA! MASUK KE SANA!':'KUMPULKAN SEMUA KRISTAL',25,30);
+}
+const map={ArrowUp:'up',w:'up',ArrowDown:'down',s:'down',ArrowLeft:'left',a:'left',ArrowRight:'right',d:'right'};
+window.addEventListener('keydown',e=>{let d=map[e.key];if(d){keys[d]=true;e.preventDefault()}if(e.key==='Escape')pause()});window.addEventListener('keyup',e=>{let d=map[e.key];if(d)keys[d]=false});
+document.querySelectorAll('[data-dir]').forEach(b=>{let d=b.dataset.dir;b.addEventListener('pointerdown',e=>{e.preventDefault();keys[d]=true;b.setPointerCapture(e.pointerId)});['pointerup','pointercancel','lostpointercapture'].forEach(ev=>b.addEventListener(ev,()=>keys[d]=false))});
+$('start').onclick=start;$('pause').onclick=pause;$('restart').onclick=()=>{reset();start()};reset();
+})();
+</script></body></html>
